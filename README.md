@@ -1,2 +1,2 @@
 # Coq_project
-BST
+Creating binary search tree and verifying its algorithms
