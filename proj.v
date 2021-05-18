@@ -464,16 +464,88 @@ Proof.
       * inversion E. apply H5.
 Qed.
 
+(* Now I want to return to the find function and prove somethimg similar
+  to what I've proven before for find-insert. If we remove n from t we
+  shouldn't be able to find it. *)
 
+Lemma no_remove_gt : forall (t : tree) (n x : nat),
+  Holds (fun y : nat => y > x) t /\ n <= x -> remove n t = t.
+Proof with auto.
+  induction t. intros n x [H1 H2]...
+  intros n0 x [H1 H2]. simpl. inversion H1. Search gt.
+  assert (HN: n0 < n). { Search gt. apply Gt.gt_le_trans with x. apply H. apply H2. }
+  Search gt. apply Compare_dec.nat_compare_gt in HN. rewrite HN.
+  assert (Hq: remove n0 t1 = t1). { apply IHt1 with x. destruct H0 as [Q _].
+  split. apply Q. apply H2. } rewrite Hq. reflexivity.
+Qed.
 
+Lemma no_remove_lt : forall (t : tree) (n x : nat),
+  Holds (fun y : nat => y < x) t /\ n >= x -> remove n t = t.
+Proof with auto.
+  induction t. intros n x [H1 H2]...
+  intros n0 x [H1 H2]. simpl. inversion H1. Search gt.
+  assert (HN: n0 > n). { Search gt. apply Gt.le_gt_trans with x. apply H2. apply H. }
+  Search gt. apply Compare_dec.nat_compare_gt in HN. rewrite Nat.compare_antisym. rewrite HN.
+  simpl.
+  assert (Hq: remove n0 t2 = t2). { apply IHt2 with x. destruct H0 as [_ Q].
+  split. apply Q. apply H2. } rewrite Hq. reflexivity.
+Qed.
 
+Lemma find_no_eq : forall (l r : tree) (n x : nat),
+  Holds (fun y : nat => y < n) l /\ Holds (fun y : nat => y > n) r /\ x > n ->
+    find n (Node l x r) = false.
+Proof with auto. induction l.  
+- intros r n x [H1 [H2 H3]]. simpl. apply Compare_dec.nat_compare_gt in H3. 
+  rewrite Nat.compare_antisym. rewrite H3. simpl. reflexivity.
+- intros r n0 x [H1 [H2 H3]]. simpl. apply Compare_dec.nat_compare_gt in H3. 
+  rewrite Nat.compare_antisym. rewrite H3. simpl. inversion H1.
+  apply Compare_dec.nat_compare_gt in H. rewrite H.
+  assert (Q: find n0 (Node l2 x r) = false). { apply IHl2. split. destruct H0 as [_ Hq].
+  apply Hq. split. apply H2. apply Compare_dec.nat_compare_gt in H3. apply H3. }
+  inversion Q. rewrite Nat.compare_antisym. rewrite H3. simpl. reflexivity.
+Qed.
 
-
-
-
-
-
-
-
-
+Theorem find_remove : forall (t : tree) (n : nat),
+ bst t -> find n (remove n t) = false.
+Proof with auto. induction t. intros n BST...
+- intros n0. intros BST. simpl. destruct (n ?= n0) eqn:t.
+  destruct t1. destruct t2 eqn:T2. 
+  + simpl. reflexivity.
+  + simpl. destruct (n0 ?= n1) eqn:N1.
+    * inversion BST. inversion H3. Search compare. 
+      apply Compare_dec.nat_compare_eq in N1. apply Compare_dec.nat_compare_eq in t.
+      rewrite N1 in t. lia.
+    * inversion BST. apply IHt2 with n0 in H5. simpl in H5. Search compare.
+      rewrite Nat.compare_antisym in H5. rewrite N1 in H5. simpl in H5.
+      rewrite N1 in H5. inversion H5. 
+      assert (HR: remove n0 t0_1 = t0_1).
+      { apply no_remove_gt with n. inversion H3. destruct H8 as [Q _]. split. apply Q.
+      Search compare. apply Nat.compare_eq in t. rewrite t. apply le_n. }
+      rewrite HR. reflexivity.
+    * inversion BST. apply IHt2 with n0 in H5. simpl in H5. Search compare.
+      rewrite Nat.compare_antisym in H5. rewrite N1 in H5. simpl in H5.
+      rewrite N1 in H5. inversion H5. 
+      assert (HR: remove n0 t0_2 = t0_2).
+      { apply no_remove_gt with n. inversion H3. destruct H8 as [_ Q]. split. apply Q.
+      Search compare. apply Nat.compare_eq in t. rewrite t. apply le_n. }
+      rewrite HR. reflexivity.
+  + destruct t2 eqn:T2. 
+    * simpl. inversion BST. inversion H2. Search compare. 
+      apply Compare_dec.nat_compare_eq in t. rewrite t in H6. Search gt.
+      apply Compare_dec.nat_compare_gt in H6. rewrite H6. apply IHt1 with n0 in H4.
+      inversion H2. assert (Q: remove n0 (Node t1_1 n1 t1_2) = Node t1_1 n1 t1_2).
+      { apply no_remove_lt with n. split. apply H2. rewrite t. apply le_n. }
+      rewrite Q in H4. simpl in H4. rewrite H6 in H4. apply H4.
+    * inversion BST. apply find_no_eq. Search compare. apply Nat.compare_eq in t.
+      rewrite <- t. split. apply H2. split. inversion H3. 
+      assert (Q: Holds (fun y : nat => y > min_elem (Node t0_1 n2 t0_2)) (remove (min_elem (Node t0_1 n2 t0_2)) (Node t0_1 n2 t0_2))).
+      { apply Holds_geq_remove_ge. inversion BST. apply H5. apply Min_is_min. apply H5. }
+      apply Holds_gt_min with (min_elem (Node t0_1 n2 t0_2)). split. apply min_Nod. split.
+      destruct H7 as [Hq _]. apply Hq. apply H6. apply Q. apply min_Nod. split. inversion H3. 
+      destruct H7 as [Hq _]. apply Hq. inversion H3. apply H6.
+  + inversion BST. apply IHt2 with n0 in H5. simpl. rewrite Nat.compare_antisym. rewrite t.
+    simpl. apply H5.
+  + inversion BST. apply IHt1 with n0 in H4. simpl. rewrite Nat.compare_antisym. rewrite t.
+    simpl. apply H4.
+Qed.
 
